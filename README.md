@@ -20,18 +20,25 @@ A vintage-inspired smart photo booth powered by **ESP32-CAM**, **MediaPipe** han
 
 ```
 Project/
-├── server.py           ← Main entry point (Flask web UI + booth loop)
-├── main.py             ← Booth orchestrator (gesture → countdown → capture)
-├── state.py            ← Shared state between server and booth
-├── gesture.py          ← MediaPipe hand detection
-├── ringlight.py        ← ESP32 ring light REST client
-├── telegram.py         ← Telegram bot photo delivery
-├── stream_server.py    ← ESP32-CAM MJPEG proxy (port 8000)
-├── config.py           ← All settings (WiFi, Telegram, timing)
-├── index.html          ← Web UI
-├── esp32_ringlight.py  ← MicroPython firmware for ESP32 ring light
-├── requirements.txt    ← Python dependencies
-└── captures/           ← Saved photos (auto-created)
+├── CameraWebServer/
+│   ├── CameraWebServer.ino
+│   ├── app_httpd.cpp
+│   ├── camera_index.h
+│   ├── camera_pins.h
+│   └── partitions.csv
+├── esp32/
+│   └── ringlight_server.py   ← save as main.py on ESP32
+├── config.py
+├── gesture.py
+├── index.html
+├── main.py
+├── requirements.txt
+├── ringlight.py
+├── server.py
+├── state.py
+├── stream_server.py
+├── telegram.py
+└── README.md
 ```
 
 ---
