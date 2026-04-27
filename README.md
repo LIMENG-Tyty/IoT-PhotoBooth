@@ -11,7 +11,7 @@ A vintage-inspired smart photo booth powered by **ESP32-CAM**, **MediaPipe** han
 | PC / Laptop (Windows) | Runs the Python server + gesture detection |
 | ESP32-CAM module | Streams live video over Wi-Fi |
 | ESP32 DevKit V1 | Controls the WS2812B ring light via REST |
-| WS2812B LED ring (16 LEDs) | Fill light for countdown + flash |
+| WS2812B LED ring (24 LEDs) | Fill light for countdown + flash |
 | Wi-Fi router | Connects all devices on the same network |
 
 ---
