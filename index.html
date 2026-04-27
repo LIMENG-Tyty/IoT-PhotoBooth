@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnapBooth — Vintage Photo Experience</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Special+Elite&family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── VARIABLES ─── */
+    :root {
+      --cream:       #f5f0e8;
+      --warm-white:  #faf7f2;
+      --sepia:       #c8a96e;
+      --sepia-dark:  #9c7a3c;
+      --brown:       #5c3d1e;
+      --brown-light: #8b5e2f;
+      --charcoal:    #2a2118;
+      --ink:         #1a1208;
+      --rose:        #c97d6a;
+      --sage:        #7a8c6e;
+      --muted:       #9e8f7a;
+      --border:      rgba(200,169,110,.3);
+      --shadow:      rgba(26,18,8,.18);
+      --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--charcoal);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: var(--grain);
+      background-size: 200px 200px;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: .45;
+    }
+
+    /* ─── PAGE SYSTEM ─── */
+    .page {
+      display: none;
+      min-height: 100vh;
+      animation: fadeSlideIn .45s ease forwards;
+    }
+    .page.active { display: flex; flex-direction: column; }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── NAVBAR ─── */
+    .navbar-snap {
+      background: rgba(26,18,8,.97);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: .8rem 2rem;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .navbar-snap .brand {
+      font-family: 'Special Elite', cursive;
+      font-size: 1.4rem;
+      color: var(--sepia);
+      letter-spacing: .06em;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .navbar-snap .brand span { color: var(--cream); }
+    .brand-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--sepia);
+      animation: pulse-green 2s infinite;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .8rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .35rem .85rem;
+      border-radius: 3px;
+      transition: color .2s, background .2s;
+    }
+    .nav-links a:hover { color: var(--sepia); background: rgba(200,169,110,.07); }
+    .nav-links a.active-link { color: var(--sepia); }
+    .navbar-toggler-snap {
+      background: none; border: 1px solid var(--border);
+      color: var(--cream); padding: .35rem .6rem;
+      border-radius: 4px; cursor: pointer; font-size: 1.1rem;
+    }
+    @media (max-width: 767px) {
+      .navbar-snap { padding: .8rem 1.25rem; }
+      .nav-links { display: none; }
+      .nav-links.show {
+        display: flex; flex-direction: column;
+        position: absolute; top: 100%; left: 0; right: 0;
+        background: var(--ink); padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border); z-index: 200;
+        gap: .25rem;
+      }
+    }
+
+    /* ─── TYPOGRAPHY ─── */
+    .display-serif { font-family: 'Playfair Display', serif; }
+    .script-serif  { font-family: 'Special Elite', cursive; }
+    .serif         { font-family: 'Lora', serif; }
+    .text-sepia    { color: var(--sepia); }
+    .text-muted-v  { color: var(--muted); }
+
+    .section-label {
+      font-size: .72rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--sepia);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn-vintage {
+      background: var(--sepia);
+      color: var(--ink);
+      border: none;
+      font-family: 'Special Elite', cursive;
+      font-size: .95rem;
+      letter-spacing: .08em;
+      padding: .75rem 2rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background .22s, transform .15s, box-shadow .22s;
+      box-shadow: 0 4px 20px rgba(200,169,110,.28);
+      display: inline-flex; align-items: center; gap: .5rem;
+    }
+    .btn-vintage:hover {
+      background: var(--sepia-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(200,169,110,.38);
+    }
+    .btn-vintage:active { transform: translateY(0); }
+
+    .btn-outline-v {
+      background: transparent;
+      color: var(--sepia);
+      border: 1.5px solid var(--sepia);
+      font-family: 'Special Elite', cursive;
+      font-size: .9rem;
+      letter-spacing: .08em;
+      padding: .65rem 1.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all .22s;
+      display: inline-flex; align-items: center; gap: .5rem;
+    }
+    .btn-outline-v:hover { background: var(--sepia); color: var(--ink); }
+
+    .btn-ghost {
+      background: none; border: none;
+      color: var(--muted); font-size: .82rem;
+      letter-spacing: .06em; text-transform: uppercase;
+      cursor: pointer; padding: .5rem;
+      transition: color .2s;
+      display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .btn-ghost:hover { color: var(--sepia); }
+
+    /* ─── DECORATIVE ─── */
+    .ornament {
+      display: flex; align-items: center; gap: 1rem;
+      color: var(--sepia);
+    }
+    .ornament::before, .ornament::after {
+      content: '';
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--sepia), transparent);
+    }
+
+    .corner-frame { position: relative; padding: 2rem; }
+    .corner-frame::before, .corner-frame::after,
+    .corner-frame > .cf-bl, .corner-frame > .cf-br {
+      content: '';
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: var(--sepia);
+      border-style: solid;
+      opacity: .55;
+    }
+    .corner-frame::before  { top: 8px;    left: 8px;   border-width: 2px 0 0 2px; }
+    .corner-frame::after   { top: 8px;    right: 8px;  border-width: 2px 2px 0 0; }
+    .corner-frame > .cf-bl { bottom: 8px; left: 8px;   border-width: 0 0 2px 2px; }
+    .corner-frame > .cf-br { bottom: 8px; right: 8px;  border-width: 0 2px 2px 0; }
+
+    /* ─── PAGE NAV ─── */
+    .page-nav {
+      padding: 1.4rem 2rem;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: auto;
+      background: rgba(26,18,8,.03);
+    }
+    .step-dots { display: flex; gap: .5rem; align-items: center; }
+    .step-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border); transition: background .3s, transform .3s;
+    }
+    .step-dot.active { background: var(--sepia); transform: scale(1.35); }
+
+    /* ════════════════════════════════════════
+       PAGE 1 — HOME
+    ════════════════════════════════════════ */
+    #page-home { background: var(--ink); color: var(--cream); }
+
+    .hero-section {
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      min-height: calc(100vh - 58px);
+    }
+
+    .hero-left {
+      flex: 1;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 4rem 3rem 4rem 4rem;
+      position: relative;
+    }
+    .hero-left::after {
+      content: '';
+      position: absolute; right: 0; top: 8%; bottom: 8%;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, var(--border), transparent);
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      border: 1px solid var(--border);
+      color: var(--sepia);
+      font-size: .72rem; letter-spacing: .2em;
+      text-transform: uppercase;
+      padding: .4rem 1rem; border-radius: 2px;
+      margin-bottom: 2rem; width: fit-content;
+      position: relative; z-index: 1;
+      background: rgba(200,169,110,.05);
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3rem, 5.5vw, 5.5rem);
+      line-height: 1.04; font-weight: 900;
+      color: var(--cream); margin-bottom: 1.5rem;
+      position: relative; z-index: 1;
+    }
+    .hero-title em { font-style: italic; color: var(--sepia); }
+
+    .hero-desc {
+      font-family: 'Lora', serif;
+      font-size: 1.05rem;
+      color: rgba(245,240,232,.62);
+      line-height: 1.85; max-width: 420px; margin-bottom: 2.5rem;
+      position: relative; z-index: 1;
+    }
+
+    .hero-cta { position: relative; z-index: 1; }
+
+    /* Animated background dots */
+    .hero-bg-dots {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    }
+    .hero-bg-dots::before {
+      content: '';
+      position: absolute; inset: -50%;
+      background-image: radial-gradient(circle, rgba(200,169,110,.14) 1px, transparent 1px);
+      background-size: 32px 32px;
+      animation: driftDots 22s linear infinite;
+    }
+    @keyframes driftDots {
+      from { transform: translateY(0); }
+      to   { transform: translateY(32px); }
+    }
+
+    /* Ambient light gradient */
+    .hero-ambient {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(200,169,110,.06), transparent);
+    }
+
+    .hero-right {
+      flex: 1; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem;
+      background: rgba(0,0,0,.1);
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      max-width: 460px; width: 100%;
+      transform: rotate(2deg);
+    }
+
+    .photo-card {
+      background: var(--brown);
+      border-radius: 2px; overflow: hidden;
+      position: relative; aspect-ratio: 3/4;
+      box-shadow: 0 14px 44px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.3);
+      transition: transform .3s, box-shadow .3s;
+    }
+    .photo-card:hover {
+      transform: rotate(-1deg) scale(1.04) !important;
+      box-shadow: 0 22px 64px rgba(0,0,0,.65);
+    }
+    .photo-card:nth-child(2) { transform: rotate(-3deg) translateY(10px); }
+    .photo-card:nth-child(3) { transform: rotate(1.5deg) translateY(-8px); }
+    .photo-card:nth-child(4) { transform: rotate(-2deg) translateY(5px); }
+
+    .photo-inner {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: .5rem;
+      background: linear-gradient(135deg, #3d2b14, #1a1208);
+      position: relative;
+    }
+    .photo-inner::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(200,169,110,.09), transparent 70%);
+    }
+    .photo-inner i { font-size: 2.5rem; color: var(--sepia); opacity: .6; position: relative; }
+    .photo-inner span {
+      font-family: 'Special Elite', cursive;
+      font-size: .7rem; color: var(--muted); letter-spacing: .1em; position: relative;
+    }
+
+    .photo-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: .5rem .75rem;
+      background: linear-gradient(transparent, rgba(0,0,0,.72));
+      font-family: 'Special Elite', cursive;
+      font-size: .65rem; color: var(--sepia); letter-spacing: .12em; text-align: center;
+    }
+
+    /* Features strip */
+    .features-strip {
+      border-top: 1px solid rgba(200,169,110,.18);
+      padding: 1.5rem 4rem;
+      display: flex; gap: 3rem; align-items: center;
+      background: rgba(0,0,0,.12);
+    }
+    .feature-item {
+      display: flex; align-items: center; gap: .75rem;
+      color: var(--muted); font-size: .82rem;
+    }
+    .feature-item i { color: var(--sepia); font-size: 1.05rem; }
+
+    @media (max-width: 991px) {
+      .hero-section { flex-direction: column; }
+      .hero-left { padding: 3rem 2rem; }
+      .hero-left::after { display: none; }
+      .features-strip { padding: 1.5rem 2rem; flex-wrap: wrap; gap: 1.5rem; }
+    }
+    @media (max-width: 575px) {
+      .hero-left { padding: 2rem 1.25rem; }
+      .hero-title { font-size: 2.6rem; }
+      .photo-grid { max-width: 280px; gap: 8px; }
+      .features-strip { padding: 1.25rem; gap: 1rem; }
+    }
+
+    /* ════════════════════════════════════════
+       PAGE 2 — FRAME SELECTOR
+    ════════════════════════════════════════ */
+    #page-frame { background: var(--warm-white); }
+
+    .frame-page-header {
+      background: var(--ink); color: var(--cream);
+      padding: 3rem 3rem 2.5rem; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .frame-page-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(200,169,110,.13), transparent 60%);
+    }
+    .frame-page-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 4vw, 2.8rem); color: var(--cream); position: relative;
+    }
+    .frame-page-header p {
+      font-family: 'Lora', serif; color: var(--muted);
+      font-size: .97rem; margin-top: .5rem; position: relative;
+    }
+
+    .frame-config-area { padding: 2.5rem 2rem; flex: 1; }
+
+    /* Style cards */
+    .frame-styles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 1.1rem; margin-bottom: 2.5rem;
+    }
+
+    .frame-style-card {
+      background: var(--cream);
+      border: 2px solid var(--border);
+      border-radius: 6px; padding: 1.2rem;
+      cursor: pointer; transition: all .22s; position: relative;
+    }
+    .frame-style-card:hover {
+      border-color: var(--sepia);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px var(--shadow);
+    }
+    .frame-style-card.selected {
+      border-color: var(--sepia);
+      background: rgba(200,169,110,.07);
+      box-shadow: 0 0 0 3px rgba(200,169,110,.2);
+    }
+    .frame-style-card .check-badge {
+      position: absolute; top: 10px; right: 10px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--sepia); color: var(--ink); font-size: .7rem;
+      display: none; align-items: center; justify-content: center;
+    }
+    .frame-style-card.selected .check-badge { display: flex; }
+
+    .frame-preview {
+      width: 100%; aspect-ratio: 3/4;
+      margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      background: #e8e0d0;
+    }
+    .frame-style-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem; font-weight: 700; color: var(--charcoal); margin-bottom: .2rem;
+    }
+    .frame-style-desc { font-size: .78rem; color: var(--muted); font-family: 'Lora', serif; font-style: italic; }
+
+    /* Frame preview variants */
+    .fp-classic  { background: #f0ead8; border: 12px solid #c8a96e; box-shadow: inset 0 0 0 2px #9c7a3c, 0 4px 16px rgba(0,0,0,.2); }
+    .fp-film     { background: #1a1208; border: 0; position: relative; }
+    .fp-film::before { content: ''; position: absolute; inset: 0; border: 16px solid #1a1208; box-shadow: inset 0 0 0 2px #3d2b14; }
+    .fp-film .perfs { position: absolute; top: 0; bottom: 0; left: 6px; display: flex; flex-direction: column; justify-content: space-around; }
+    .fp-film .perfs span { display: block; width: 10px; height: 8px; background: #f0ead8; border-radius: 1px; }
+    .fp-polaroid { background: #faf7f2; border: 8px solid #faf7f2; border-bottom: 36px solid #faf7f2; box-shadow: 0 4px 16px rgba(0,0,0,.2), 2px 2px 0 #e0d8cc, 4px 4px 0 #d0c8bc; }
+    .fp-botanical { background: #f5f0e8; border: 10px solid #7a8c6e; box-shadow: inset 0 0 0 3px #a8b89a, 0 4px 16px rgba(0,0,0,.15); }
+    .fp-preview-icon { font-size: 2.5rem; color: var(--sepia); opacity: .4; }
+
+    /* Color picker */
+    .option-section { margin-bottom: 2rem; }
+    .option-section h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 1rem; color: var(--charcoal); }
+    .color-swatches { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .color-swatch {
+      width: 36px; height: 36px; border-radius: 50%;
+      cursor: pointer; border: 3px solid transparent;
+      transition: transform .2s, border-color .2s;
+    }
+    .color-swatch:hover { transform: scale(1.18); }
+    .color-swatch.selected { border-color: var(--charcoal); box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px var(--charcoal); }
+
+    /* Theme pills */
+    .theme-pills { display: flex; gap: .65rem; flex-wrap: wrap; }
+    .theme-pill {
+      padding: .45rem 1.2rem;
+      border: 1.5px solid var(--border); border-radius: 99px;
+      font-size: .82rem; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; color: var(--muted); transition: all .2s;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .theme-pill:hover { border-color: var(--sepia); color: var(--charcoal); }
+    .theme-pill.selected { background: var(--sepia); color: var(--ink); border-color: var(--sepia); font-weight: 500; }
+
+    /* Live preview sidebar */
+    .frame-live-preview {
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.5rem;
+      position: sticky; top: 76px;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .flp-title {
+      font-family: 'Special Elite', cursive; font-size: .82rem;
+      color: var(--muted); letter-spacing: .12em; margin-bottom: 1rem; text-transform: uppercase;
+    }
+    .flp-frame {
+      width: 100%; aspect-ratio: 3/4;
+      background: #e8e0d0;
+      border: 3px solid var(--sepia);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem; position: relative;
+      transition: all .3s; overflow: hidden;
+    }
+    .flp-frame i { font-size: 3rem; color: var(--muted); opacity: .5; }
+    .flp-info { font-size: .78rem; color: var(--muted); font-family: 'Lora', serif; font-style: italic; text-align: center; }
+
+    @media (max-width: 767px) { .frame-live-preview { display: none; } }
+
+    /* ════════════════════════════════════════
+       PAGE 3 — CAPTURE
+    ════════════════════════════════════════ */
+    #page-capture { background: var(--ink); color: var(--cream); }
+
+    .capture-header {
+      text-align: center; padding: 2.5rem 1.5rem 1.2rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,.2), transparent);
+    }
+    .capture-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.6rem, 3vw, 2.3rem); color: var(--cream);
+    }
+    .capture-header p {
+      font-family: 'Lora', serif; color: var(--muted); font-style: italic; margin-top: .4rem;
+    }
+
+    .capture-body { flex: 1; display: flex; gap: 1.75rem; padding: 1rem 2rem 2rem; align-items: flex-start; }
+    .camera-col { flex: 2; }
+    .info-col { flex: 1; min-width: 220px; }
+
+    /* Camera viewport */
+    .camera-viewport {
+      width: 100%; aspect-ratio: 4/3;
+      background: #090704;
+      border: 2px solid var(--border);
+      border-radius: 6px; position: relative; overflow: hidden;
+      box-shadow: 0 20px 64px rgba(0,0,0,.7), 0 0 0 1px rgba(200,169,110,.1);
+    }
+
+    /* Scan line */
+    .cam-scan-line {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(200,169,110,.5), transparent);
+      animation: scanLine 3.5s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes scanLine {
+      from { top: 0; } to { top: 100%; }
+    }
+
+    /* Corner markers */
+    .cam-corners { position: absolute; inset: 14px; pointer-events: none; }
+    .cam-corners::before, .cam-corners::after,
+    .cam-corners > span:nth-child(1), .cam-corners > span:nth-child(2) {
+      content: ''; position: absolute; width: 20px; height: 20px;
+      border-color: var(--sepia); border-style: solid; opacity: .75;
+    }
+    .cam-corners::before           { top: 0; left: 0;    border-width: 2px 0 0 2px; }
+    .cam-corners::after            { top: 0; right: 0;   border-width: 2px 2px 0 0; }
+    .cam-corners > span:nth-child(1) { bottom: 0; left: 0;  border-width: 0 0 2px 2px; }
+    .cam-corners > span:nth-child(2) { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+    /* Camera placeholder */
+    .cam-placeholder {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1rem; color: var(--muted);
+    }
+    .cam-placeholder i { font-size: 3.5rem; color: var(--sepia); opacity: .35; }
+    .cam-placeholder p { font-family: 'Special Elite', cursive; font-size: .9rem; letter-spacing: .1em; }
+
+    /* Status bar */
+    .cam-status-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .7rem 1rem;
+      background: rgba(10,7,3,.85);
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 6px 6px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--sage); margin-right: .5rem;
+      animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+    .status-dot.waiting   { background: var(--sepia); }
+    .status-dot.detecting { background: var(--rose); animation: pulse-red 1s infinite; }
+    @keyframes pulse-red {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .2; }
+    }
+
+    /* Countdown overlay */
+    .countdown-overlay {
+      position: absolute; inset: 0;
+      background: rgba(15,10,4,.78);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; z-index: 10;
+      backdrop-filter: blur(2px);
+    }
+    .countdown-overlay.active { display: flex; }
+    .countdown-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 9rem; font-weight: 900;
+      color: var(--sepia); animation: countPop .5s ease; line-height: 1;
+    }
+    @keyframes countPop {
+      from { transform: scale(1.7); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .countdown-label {
+      font-family: 'Special Elite', cursive;
+      font-size: 1rem; letter-spacing: .22em;
+      color: var(--cream); margin-top: .5rem;
+    }
+
+    /* Flash overlay */
+    .flash-overlay {
+      position: absolute; inset: 0;
+      background: white; opacity: 0; pointer-events: none;
+      z-index: 20; transition: opacity .1s;
+    }
+    .flash-overlay.flash { opacity: 1; }
+
+    /* Gesture guide */
+    .gesture-guide {
+      background: rgba(26,18,8,.55);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .gesture-guide h4 {
+      font-family: 'Playfair Display', serif; font-size: 1rem;
+      color: var(--sepia); margin-bottom: .75rem;
+    }
+    .gesture-step {
+      display: flex; align-items: flex-start;
+      gap: .65rem; margin-bottom: .65rem;
+    }
+    .gesture-step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--sepia); color: var(--ink);
+      font-size: .7rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: .1rem;
+    }
+    .gesture-step p { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+    .gesture-icon-large {
+      font-size: 4rem;
+      display: flex; align-items: center; justify-content: center;
+      margin: 1rem 0;
+      animation: gestureFloat 2.2s ease-in-out infinite;
+    }
+    @keyframes gestureFloat {
+      0%,100% { transform: translateY(0) rotate(-5deg); }
+      50%      { transform: translateY(-10px) rotate(5deg); }
+    }
+
+    /* Trigger progress bar */
+    .trigger-bar-wrap {
+      height: 4px; background: rgba(200,169,110,.15);
+      border-radius: 2px; overflow: hidden; margin-top: .5rem;
+    }
+    .trigger-bar {
+      height: 100%; background: var(--sepia);
+      border-radius: 2px; transition: width .15s ease;
+      width: 0%;
+    }
+
+    /* Photo strip result */
+    .photo-strip {
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1rem; display: none;
+      box-shadow: 0 8px 28px rgba(0,0,0,.25);
+    }
+    .photo-strip h4 {
+      font-family: 'Special Elite', cursive; color: var(--charcoal);
+      font-size: .85rem; letter-spacing: .1em; margin-bottom: .75rem;
+    }
+    .strip-thumb {
+      width: 100%; aspect-ratio: 4/3;
+      background: var(--brown); border: 2px solid var(--sepia);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: .75rem; position: relative; overflow: hidden;
+    }
+    .strip-thumb i { font-size: 2rem; color: var(--sepia); opacity: .4; position: absolute; }
+    .sent-badge {
+      display: flex; align-items: center; gap: .5rem;
+      background: rgba(122,140,110,.12); border: 1px solid var(--sage);
+      color: var(--sage); border-radius: 3px; padding: .4rem .75rem;
+      font-size: .78rem;
+    }
+
+    /* Right panel cards */
+    .right-preview-card {
+      background: rgba(26,18,8,.55);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.25rem;
+    }
+    .right-count-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 7rem; font-weight: 900; color: var(--sepia);
+      line-height: 1; text-align: center;
+      animation: countPop .5s ease;
+    }
+    .right-cam-wrap {
+      width: 100%; aspect-ratio: 4/3;
+      background: #0d0a06; border: 2px solid var(--border);
+      border-radius: 4px; overflow: hidden; position: relative;
+    }
+    .right-cam-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-photo-wrap {
+      width: 100%; aspect-ratio: 4/3;
+      background: var(--ink); border: 2px solid var(--sepia);
+      border-radius: 3px; overflow: hidden; position: relative;
+    }
+    .result-spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid rgba(200,169,110,.2);
+      border-top-color: var(--sepia);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 767px) {
+      .capture-body { flex-direction: column; padding: 1rem; }
+      .info-col { min-width: unset; width: 100%; }
+    }
+
+    /* ════════════════════════════════════════
+       PAGE 4 — HOW IT WORKS
+    ════════════════════════════════════════ */
+    #page-how { background: var(--cream); }
+
+    .how-header {
+      background: var(--ink); color: var(--cream);
+      padding: 3.5rem 2rem; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .how-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        45deg, transparent, transparent 28px,
+        rgba(200,169,110,.03) 28px, rgba(200,169,110,.03) 56px
+      );
+    }
+    .how-header h1 { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4vw, 3rem); position: relative; }
+    .how-header p { font-family: 'Lora', serif; color: var(--muted); font-style: italic; margin-top: .5rem; position: relative; }
+
+    .how-content { padding: 3rem 2rem; max-width: 860px; margin: 0 auto; }
+
+    .how-step {
+      display: flex; gap: 1.5rem; margin-bottom: 2.5rem;
+      align-items: flex-start;
+    }
+    .how-step-num {
+      flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
+      background: var(--ink); border: 2px solid var(--sepia);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-size: 1.4rem;
+      color: var(--sepia); font-weight: 700;
+    }
+    .how-step-body h3 {
+      font-family: 'Playfair Display', serif; font-size: 1.15rem;
+      color: var(--charcoal); margin-bottom: .5rem;
+    }
+    .how-step-body p { font-family: 'Lora', serif; color: var(--brown-light); line-height: 1.85; font-size: .93rem; }
+    .how-step-body .step-icon { font-size: 1.4rem; color: var(--sepia); margin-bottom: .4rem; display: block; }
+
+    .faq-section { margin-top: 2rem; }
+    .faq-item { border-bottom: 1px solid var(--border); padding: 1.2rem 0; }
+    .faq-q {
+      font-family: 'Playfair Display', serif; font-size: .97rem;
+      color: var(--charcoal); cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .faq-q i { color: var(--sepia); transition: transform .3s; }
+    .faq-item.open .faq-q i { transform: rotate(45deg); }
+    .faq-a {
+      font-family: 'Lora', serif; color: var(--brown-light);
+      font-size: .88rem; line-height: 1.8;
+      max-height: 0; overflow: hidden; transition: max-height .4s ease, padding .3s;
+    }
+    .faq-item.open .faq-a { max-height: 200px; padding-top: .75rem; }
+
+    /* Architecture flow */
+    .arch-flow {
+      display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+      margin-top: .75rem;
+    }
+    .arch-node {
+      background: rgba(200,169,110,.12); border: 1px solid var(--border);
+      border-radius: 4px; padding: .35rem .85rem;
+      font-family: 'DM Sans', sans-serif; font-size: .82rem;
+      color: var(--charcoal); font-weight: 500;
+    }
+    .arch-arrow { color: var(--sepia); font-size: 1rem; }
+
+    /* ════════════════════════════════════════
+       PAGE 5 — ABOUT
+    ════════════════════════════════════════ */
+    #page-about { background: var(--warm-white); }
+
+    .about-hero {
+      background: var(--ink); color: var(--cream);
+      padding: 4rem 2rem; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .about-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        45deg, transparent, transparent 30px,
+        rgba(200,169,110,.03) 30px, rgba(200,169,110,.03) 60px
+      );
+    }
+    .about-hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.2rem, 5vw, 3.5rem); position: relative;
+    }
+    .about-hero p { font-family: 'Lora', serif; color: var(--muted); font-style: italic; max-width: 520px; margin: 1rem auto 0; position: relative; }
+
+    .about-content { padding: 3rem 2rem; max-width: 900px; margin: 0 auto; }
+    .about-section { margin-bottom: 3rem; }
+    .about-section h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--charcoal); margin-bottom: 1rem; }
+    .about-section p { font-family: 'Lora', serif; line-height: 1.9; color: var(--brown-light); font-size: .95rem; }
+
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+    .team-card {
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.75rem 1.5rem;
+      text-align: center; transition: transform .25s, box-shadow .25s;
+      position: relative; overflow: hidden;
+    }
+    .team-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--sepia), var(--brown-light));
+    }
+    .team-card:hover { transform: translateY(-5px); box-shadow: 0 14px 36px var(--shadow); }
+    .team-avatar {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: var(--ink); margin: 0 auto 1rem;
+      display: flex; align-items: center; justify-content: center;
+      border: 3px solid var(--sepia);
+    }
+    .team-avatar i { font-size: 1.8rem; color: var(--sepia); }
+    .team-card .role { font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; color: var(--sepia); margin-bottom: .35rem; font-family: 'DM Sans', sans-serif; }
+    .team-card h4 { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--charcoal); margin-bottom: .25rem; }
+    .team-card p { font-size: .8rem; color: var(--muted); font-family: 'Lora', serif; font-style: italic; }
+
+    .tech-stack { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+    .tech-tag {
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: 3px; padding: .4rem 1rem; font-size: .8rem;
+      color: var(--brown-light); font-family: 'DM Sans', sans-serif;
+      display: flex; align-items: center; gap: .4rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .tech-tag:hover { border-color: var(--sepia); transform: translateY(-2px); }
+    .tech-tag i { color: var(--sepia); }
+
+    /* ─── FOOTER ─── */
+    .site-footer {
+      background: var(--ink); color: var(--muted);
+      padding: 1.5rem 2rem; text-align: center;
+      font-size: .8rem; font-family: 'Lora', serif;
+      border-top: 1px solid var(--border);
+    }
+    .site-footer span { color: var(--sepia); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 575px) {
+      .capture-header { padding: 1.5rem 1rem .75rem; }
+      .how-step { flex-direction: column; gap: 1rem; }
+      .about-content, .how-content { padding: 2rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════ -->
+<nav class="navbar-snap d-flex align-items-center justify-content-between position-relative">
+  <a class="brand" onclick="goTo('home')">
+    Snap<span>Booth</span>
+    <div class="brand-dot"></div>
+  </a>
+  <button class="navbar-toggler-snap d-md-none" onclick="toggleMobileMenu()">
+    <i class="bi bi-list"></i>
+  </button>
+  <div class="nav-links d-md-flex gap-1" id="navLinks">
+    <a href="#" onclick="goTo('home')"    id="nl-home">Home</a>
+    <a href="#" onclick="goTo('frame')"   id="nl-frame">Frame</a>
+    <a href="#" onclick="goTo('capture')" id="nl-capture">Capture</a>
+    <a href="#" onclick="goTo('how')"     id="nl-how">How It Works</a>
+    <a href="#" onclick="goTo('about')"   id="nl-about">About Us</a>
+  </div>
+</nav>
+
+
+<!-- ════════════════════════════════════════
+     PAGE 1 — HOME
+════════════════════════════════════════ -->
+<div class="page active" id="page-home">
+  <div class="hero-section">
+
+    <!-- Left -->
+    <div class="hero-left">
+      <div class="hero-bg-dots"></div>
+      <div class="hero-ambient"></div>
+
+      <div class="hero-badge">
+        <i class="bi bi-camera2"></i> IoT Final Project · 2025
+      </div>
+
+      <h1 class="hero-title">
+        Capture<br><em>Memories</em><br>Instantly
+      </h1>
+      <p class="hero-desc">
+        A vintage-inspired smart photo booth powered by ESP32-CAM &amp; MediaPipe.
+        Show a high-five — and let the magic unfold in three, two, one&hellip;
+      </p>
+
+      <div class="hero-cta d-flex gap-3 flex-wrap">
+        <button class="btn-vintage" onclick="goTo('frame')">
+          <i class="bi bi-stars"></i> Start Shooting
+        </button>
+        <button class="btn-outline-v" onclick="goTo('how')" style="color:var(--sepia);border-color:rgba(200,169,110,.5);">
+          <i class="bi bi-question-circle"></i> How It Works
+        </button>
+      </div>
+    </div>
+
+    <!-- Right — photo collage -->
+    <div class="hero-right">
+      <div class="photo-grid">
+        <div class="photo-card">
+          <div class="photo-inner">
+            <i class="bi bi-person-standing"></i>
+            <span>Portrait</span>
+          </div>
+          <div class="photo-label">✦ Classic ✦</div>
+        </div>
+        <div class="photo-card">
+          <div class="photo-inner" style="background:linear-gradient(135deg,#2a1a0a,#0d0a06);">
+            <i class="bi bi-film"></i>
+            <span>Film Strip</span>
+          </div>
+          <div class="photo-label">✦ Cinematic ✦</div>
+        </div>
+        <div class="photo-card">
+          <div class="photo-inner" style="background:linear-gradient(135deg,#f5f0e8,#e8d8c0);">
+            <i class="bi bi-camera" style="color:var(--brown);"></i>
+            <span style="color:var(--brown);">Polaroid</span>
+          </div>
+          <div class="photo-label">✦ Polaroid ✦</div>
+        </div>
+        <div class="photo-card">
+          <div class="photo-inner" style="background:linear-gradient(135deg,#2d3d28,#1a2415);">
+            <i class="bi bi-flower1"></i>
+            <span>Botanical</span>
+          </div>
+          <div class="photo-label">✦ Nature ✦</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Features strip -->
+  <div class="features-strip">
+    <div class="feature-item">
+      <i class="bi bi-hand-thumbs-up"></i>
+      <span>High-Five Gesture Trigger</span>
+    </div>
+    <div class="feature-item">
+      <i class="bi bi-send"></i>
+      <span>Instant Telegram Delivery</span>
+    </div>
+    <div class="feature-item">
+      <i class="bi bi-cpu"></i>
+      <span>ESP32-CAM · MediaPipe · OpenCV</span>
+    </div>
+    <div class="feature-item">
+      <i class="bi bi-palette"></i>
+      <span>4 Vintage Frame Styles</span>
+    </div>
+  </div>
+
+  <div class="page-nav" style="background:rgba(255,255,255,.04);border-color:rgba(200,169,110,.18);">
+    <div></div>
+    <div class="step-dots">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <button class="btn-vintage" onclick="goTo('frame')">
+      Choose Frame <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PAGE 2 — FRAME SELECTOR
+════════════════════════════════════════ -->
+<div class="page" id="page-frame">
+  <div class="frame-page-header">
+    <div class="section-label mb-2">Step 1 of 2</div>
+    <h1>Design Your <em style="font-style:italic;color:var(--sepia);">Frame</em></h1>
+    <p>Pick a style, colour palette &amp; mood before stepping in front of the camera.</p>
+  </div>
+
+  <div class="frame-config-area flex-grow-1">
+    <div class="container-fluid px-0">
+      <div class="row g-4">
+        <div class="col-lg-8">
+
+          <!-- Frame Style -->
+          <div class="option-section">
+            <div class="section-label mb-2">Frame Style</div>
+            <h3>Choose your frame</h3>
+            <div class="frame-styles-grid">
+
+              <div class="frame-style-card selected" data-style="classic" onclick="selectStyle(this,'classic')">
+                <div class="check-badge"><i class="bi bi-check"></i></div>
+                <div class="frame-preview fp-classic">
+                  <i class="bi bi-camera fp-preview-icon"></i>
+                </div>
+                <div class="frame-style-name">Classic Gold</div>
+                <div class="frame-style-desc">Timeless gilded border</div>
+              </div>
+
+              <div class="frame-style-card" data-style="film" onclick="selectStyle(this,'film')">
+                <div class="check-badge"><i class="bi bi-check"></i></div>
+                <div class="frame-preview fp-film">
+                  <div class="perfs"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                  <i class="bi bi-film fp-preview-icon" style="color:var(--sepia);opacity:.7;position:relative;z-index:1;"></i>
+                </div>
+                <div class="frame-style-name">35mm Film</div>
+                <div class="frame-style-desc">Cinematic strip edges</div>
+              </div>
+
+              <div class="frame-style-card" data-style="polaroid" onclick="selectStyle(this,'polaroid')">
+                <div class="check-badge"><i class="bi bi-check"></i></div>
+                <div class="frame-preview fp-polaroid">
+                  <i class="bi bi-image fp-preview-icon" style="color:var(--brown);opacity:.4;"></i>
+                </div>
+                <div class="frame-style-name">Polaroid</div>
+                <div class="frame-style-desc">Instant-print white border</div>
+              </div>
+
+              <div class="frame-style-card" data-style="botanical" onclick="selectStyle(this,'botanical')">
+                <div class="check-badge"><i class="bi bi-check"></i></div>
+                <div class="frame-preview fp-botanical">
+                  <i class="bi bi-flower1 fp-preview-icon" style="color:var(--sage);opacity:.6;"></i>
+                </div>
+                <div class="frame-style-name">Botanical</div>
+                <div class="frame-style-desc">Nature-inspired sage trim</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Color Picker -->
+          <div class="option-section">
+            <div class="section-label mb-2">Colour Palette</div>
+            <h3>Accent colour</h3>
+            <div class="color-swatches">
+              <div class="color-swatch selected" style="background:#c8a96e;" data-color="gold"       title="Vintage Gold"    onclick="selectColor(this,'gold')"></div>
+              <div class="color-swatch"          style="background:#c97d6a;" data-color="rose"       title="Dusty Rose"      onclick="selectColor(this,'rose')"></div>
+              <div class="color-swatch"          style="background:#7a8c6e;" data-color="sage"       title="Sage Green"      onclick="selectColor(this,'sage')"></div>
+              <div class="color-swatch"          style="background:#6a7fa0;" data-color="slate"      title="Slate Blue"      onclick="selectColor(this,'slate')"></div>
+              <div class="color-swatch"          style="background:#9c7aa0;" data-color="lavender"   title="Muted Lavender"  onclick="selectColor(this,'lavender')"></div>
+              <div class="color-swatch"          style="background:#a07a5a;" data-color="terracotta" title="Terracotta"      onclick="selectColor(this,'terracotta')"></div>
+              <div class="color-swatch"          style="background:#2a2118;" data-color="charcoal"   title="Charcoal"        onclick="selectColor(this,'charcoal')"></div>
+              <div class="color-swatch"          style="background:#f5f0e8;border:2px solid #ccc;" data-color="cream" title="Ivory Cream" onclick="selectColor(this,'cream')"></div>
+            </div>
+          </div>
+
+          <!-- Theme -->
+          <div class="option-section">
+            <div class="section-label mb-2">Theme / Mood</div>
+            <h3>Set the atmosphere</h3>
+            <div class="theme-pills">
+              <div class="theme-pill selected" data-theme="vintage"   onclick="selectTheme(this,'vintage')">   <i class="bi bi-hourglass-split"></i> Vintage   </div>
+              <div class="theme-pill"          data-theme="romantic"  onclick="selectTheme(this,'romantic')">  <i class="bi bi-heart"></i> Romantic           </div>
+              <div class="theme-pill"          data-theme="minimal"   onclick="selectTheme(this,'minimal')">   <i class="bi bi-dash-circle"></i> Minimal       </div>
+              <div class="theme-pill"          data-theme="festive"   onclick="selectTheme(this,'festive')">   <i class="bi bi-stars"></i> Festive            </div>
+              <div class="theme-pill"          data-theme="noir"      onclick="selectTheme(this,'noir')">      <i class="bi bi-moon-stars"></i> Noir           </div>
+              <div class="theme-pill"          data-theme="botanical" onclick="selectTheme(this,'botanical')"> <i class="bi bi-flower2"></i> Botanical         </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live Preview Sidebar -->
+        <div class="col-lg-4">
+          <div class="frame-live-preview">
+            <div class="flp-title">Live Preview</div>
+            <div class="flp-frame" id="livePreviewFrame">
+              <i class="bi bi-person-bounding-box"></i>
+            </div>
+            <div class="flp-info" id="livePreviewLabel">Classic Gold · Vintage Gold · Vintage</div>
+            <div class="mt-3 text-center">
+              <div class="section-label mb-1">Your selection</div>
+              <div id="selectionSummary" style="font-family:'Lora',serif;font-size:.85rem;color:var(--muted);line-height:1.7;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-ghost" onclick="goTo('home')">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <div class="step-dots">
+      <div class="step-dot"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <button class="btn-vintage" onclick="goTo('capture')">
+      Enter Booth <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PAGE 3 — CAPTURE
+════════════════════════════════════════ -->
+<div class="page" id="page-capture">
+  <div class="capture-header">
+    <div class="section-label mb-1" style="color:var(--sepia);">Step 2 of 2 · Shoot!</div>
+    <h1>You're in the <em style="font-style:italic;color:var(--sepia);">Booth</em></h1>
+    <p>Show a ✋ high-five to the camera — we'll handle the rest.</p>
+  </div>
+
+  <div class="capture-body flex-grow-1">
+
+    <!-- LEFT: Camera feed -->
+    <div class="camera-col">
+      <div class="camera-viewport">
+        <img id="camFeed" style="width:100%;height:100%;object-fit:cover;display:block;" alt="ESP32-CAM stream" />
+
+        <div class="cam-placeholder" id="camPlaceholder" style="display:none;">
+          <i class="bi bi-camera-video-off"></i>
+          <p>Waiting for ESP32-CAM</p>
+          <small style="font-size:.75rem;color:var(--muted);font-family:'Lora',serif;">Connecting to stream…</small>
+          <button class="btn-outline-v mt-3" style="font-size:.8rem;padding:.45rem 1.25rem;" onclick="demoCountdown()">
+            <i class="bi bi-play-circle"></i> Demo Countdown
+          </button>
+        </div>
+
+        <div class="cam-scan-line"></div>
+        <div class="cam-corners"><span></span><span></span></div>
+
+        <!-- Countdown overlay on camera -->
+        <div class="countdown-overlay" id="countdownOverlay">
+          <div class="countdown-number" id="countdownNum">3</div>
+          <div class="countdown-label">Get Ready!</div>
+        </div>
+
+        <div class="flash-overlay" id="flashOverlay"></div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="cam-status-bar">
+        <div class="d-flex align-items-center">
+          <div class="status-dot waiting" id="statusDot"></div>
+          <span style="font-size:.8rem;color:var(--muted);font-family:'Special Elite',cursive;letter-spacing:.08em;" id="statusText">
+            Waiting for gesture…
+          </span>
+        </div>
+        <div style="font-size:.75rem;color:var(--sepia);">
+          <span id="selectedStyleBadge"></span>
+        </div>
+      </div>
+
+      <!-- Trigger hold progress bar -->
+      <div class="trigger-bar-wrap mt-1">
+        <div class="trigger-bar" id="triggerBar"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Live preview panel -->
+    <div class="info-col">
+
+      <!-- ── Panel A: Gesture guide (shown while IDLE) ── -->
+      <div id="panelGuide">
+        <div class="gesture-guide">
+          <h4><i class="bi bi-info-circle me-2"></i>How to Trigger</h4>
+          <div class="gesture-icon-large">✋</div>
+          <div class="gesture-step">
+            <div class="gesture-step-num">1</div>
+            <p>Stand <strong style="color:var(--sepia);">0.5–1.5m</strong> from the camera.</p>
+          </div>
+          <div class="gesture-step">
+            <div class="gesture-step-num">2</div>
+            <p>Raise hand with <strong style="color:var(--sepia);">all 5 fingers open</strong>.</p>
+          </div>
+          <div class="gesture-step">
+            <div class="gesture-step-num">3</div>
+            <p>Hold for <strong style="color:var(--sepia);">&gt; 1 second</strong> until detected.</p>
+          </div>
+          <div class="gesture-step">
+            <div class="gesture-step-num">4</div>
+            <p>Countdown — <strong style="color:var(--sepia);">smile</strong> at 1!</p>
+          </div>
+        </div>
+        <div class="gesture-guide mt-2" style="padding:.85rem 1rem;">
+          <h4><i class="bi bi-palette me-2"></i>Your Frame</h4>
+          <div id="frameSummaryCaptureText" style="font-size:.82rem;color:var(--muted);font-family:'Lora',serif;line-height:1.65;"></div>
+        </div>
+      </div>
+
+      <!-- ── Panel B: Live preview (shown during COUNTDOWN) ── -->
+      <div id="panelCountdown" style="display:none;">
+        <div class="right-preview-card">
+          <div class="section-label mb-2" style="color:var(--sepia);">Live Preview</div>
+          <!-- big countdown number on the right -->
+          <div id="rightCountNum" class="right-count-num">3</div>
+          <div style="font-family:'Special Elite',cursive;font-size:.85rem;letter-spacing:.15em;color:var(--muted);text-align:center;margin-bottom:.75rem;">GET READY!</div>
+          <!-- mirror of camera feed via base64 from server -->
+          <div class="right-cam-wrap">
+            <img id="rightCamImg" src="" alt="live" style="width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;" />
+            <div class="right-cam-placeholder" id="rightCamPlaceholder">
+              <i class="bi bi-camera" style="font-size:2rem;color:var(--sepia);opacity:.4;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Panel C: Captured photo result ── -->
+      <div id="panelResult" style="display:none;">
+        <div class="right-preview-card">
+          <div class="section-label mb-2" style="color:var(--sepia);">📸 Your Shot</div>
+
+          <!-- Photo display with loading state -->
+          <div id="resultPhotoWrap" class="result-photo-wrap" style="opacity:0;transition:opacity .4s;">
+            <img id="resultPhoto" src="" alt="Captured photo"
+                 style="width:100%;height:100%;object-fit:cover;border-radius:3px;display:none;" />
+            <!-- Placeholder shown while image loads -->
+            <div id="resultPhotoEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--ink);">
+              <div class="result-spinner"></div>
+              <span style="font-family:'Special Elite',cursive;font-size:.75rem;color:var(--muted);letter-spacing:.1em;">Processing…</span>
+            </div>
+          </div>
+
+          <div id="resultBadge" class="sent-badge mt-2 mb-2">
+            <i class="bi bi-telegram"></i> Sent to Telegram ✓
+          </div>
+          <button class="btn-vintage w-100 mt-1" onclick="resetCapture()" style="font-size:.82rem;padding:.55rem 1rem;">
+            <i class="bi bi-arrow-repeat"></i> Take Another
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /info-col -->
+  </div>
+
+  <div class="page-nav" style="background:rgba(255,255,255,.04);border-color:rgba(200,169,110,.18);">
+    <button class="btn-ghost" style="color:var(--muted);" onclick="goTo('frame')">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <div class="step-dots">
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <button class="btn-vintage" onclick="goTo('home')">
+      <i class="bi bi-house"></i> Home
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PAGE 4 — HOW IT WORKS
+════════════════════════════════════════ -->
+<div class="page" id="page-how">
+  <div class="how-header">
+    <div class="section-label mb-2" style="color:var(--sepia);">Behind the Magic</div>
+    <h1>How It <em style="font-style:italic;color:var(--sepia);">Works</em></h1>
+    <p>A peek under the hood of our IoT photo booth system.</p>
+  </div>
+
+  <div class="how-content flex-grow-1">
+
+    <div class="how-step">
+      <div class="how-step-num">1</div>
+      <div class="how-step-body">
+        <span class="step-icon"><i class="bi bi-camera-video"></i></span>
+        <h3>ESP32-CAM Streams Video</h3>
+        <p>The ESP32-CAM broadcasts a live MJPEG stream over Wi-Fi at
+           <code>http://esp32cam-a1b2.local:81/stream</code>.
+           The feed is proxied through Flask and displayed here in real time.</p>
+      </div>
+    </div>
+
+    <div class="how-step">
+      <div class="how-step-num">2</div>
+      <div class="how-step-body">
+        <span class="step-icon"><i class="bi bi-cpu"></i></span>
+        <h3>MediaPipe Detects Gestures</h3>
+        <p>Each frame is analysed by Google's MediaPipe Hands library. When all five fingers are
+           extended for more than one second — the High-Five is confirmed and the sequence begins.</p>
+      </div>
+    </div>
+
+    <div class="how-step">
+      <div class="how-step-num">3</div>
+      <div class="how-step-body">
+        <span class="step-icon"><i class="bi bi-lightbulb"></i></span>
+        <h3>Ring Light &amp; Countdown</h3>
+        <p>The ESP32 ring light illuminates for the countdown, then fires a bright flash burst
+           at capture time — providing perfect fill light from the WS2812B ring.</p>
+      </div>
+    </div>
+
+    <div class="how-step">
+      <div class="how-step-num">4</div>
+      <div class="how-step-body">
+        <span class="step-icon"><i class="bi bi-palette"></i></span>
+        <h3>Frame Overlay Applied</h3>
+        <p>Python (OpenCV) composites your chosen frame style and colour directly onto the JPEG
+           before saving — so the final image has the border baked in.</p>
+      </div>
+    </div>
+
+    <div class="how-step">
+      <div class="how-step-num">5</div>
+      <div class="how-step-body">
+        <span class="step-icon"><i class="bi bi-telegram"></i></span>
+        <h3>Photo Delivered to Telegram</h3>
+        <p>The framed image is immediately pushed to a Telegram bot which forwards it to your chat.
+           No app installs needed — scan a QR code and receive your memory instantly.</p>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="corner-frame" style="background:var(--cream);border:1px solid var(--border);border-radius:6px;margin-top:1rem;">
+      <div class="cf-bl"></div><div class="cf-br"></div>
+      <div class="section-label mb-2">Architecture Overview</div>
+      <div class="arch-flow">
+        <div class="arch-node"><i class="bi bi-camera" style="color:var(--sepia);"></i> ESP32-CAM</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node"><i class="bi bi-wifi" style="color:var(--sepia);"></i> Wi-Fi / MJPEG</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node"><i class="bi bi-cpu" style="color:var(--sepia);"></i> MediaPipe + Flask</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node"><i class="bi bi-lightbulb" style="color:var(--sepia);"></i> Ring Light</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node"><i class="bi bi-telegram" style="color:var(--sepia);"></i> Telegram Bot</div>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="faq-section mt-4">
+      <div class="section-label mb-3">Frequently Asked</div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Do I need a Telegram account? <i class="bi bi-plus-lg"></i></div>
+        <div class="faq-a">Yes — simply open the bot link or scan the QR code in under 30 seconds and you're ready to receive photos.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What if the gesture isn't detected? <i class="bi bi-plus-lg"></i></div>
+        <div class="faq-a">Make sure all five fingers are clearly spread, you're well-lit, and within 0.5–1.5 m of the camera. Lighting is the biggest factor for the wide-angle ESP32-CAM lens.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Can I take multiple shots? <i class="bi bi-plus-lg"></i></div>
+        <div class="faq-a">Absolutely — after each photo the system resets automatically. Lower your hand for two seconds then raise it again to start a new sequence.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Is the frame style applied in the actual photo? <i class="bi bi-plus-lg"></i></div>
+        <div class="faq-a">Yes — the frame overlay is composited on the server using Python / OpenCV before the image is sent to Telegram, so your chosen style is baked right into the final photo.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-ghost" onclick="goTo('home')">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <div class="step-dots">
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+    </div>
+    <button class="btn-vintage" onclick="goTo('frame')">
+      Choose Frame <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+
+  <footer class="site-footer">
+    SnapBooth · IoT Final Project · Built with <span>❤</span> using ESP32 + MediaPipe
+  </footer>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PAGE 5 — ABOUT US
+════════════════════════════════════════ -->
+<div class="page" id="page-about">
+  <div class="about-hero">
+    <div class="section-label mb-2" style="color:var(--sepia);position:relative;">Our Story</div>
+    <h1>About <em style="font-style:italic;color:var(--sepia);">Us</em></h1>
+    <p>A team of IoT enthusiasts blending hardware craft with vintage aesthetics.</p>
+  </div>
+
+  <div class="about-content flex-grow-1">
+
+    <div class="about-section">
+      <div class="ornament mb-3"><i class="bi bi-camera2"></i></div>
+      <h2>The Project</h2>
+      <p>
+        SnapBooth was born as our IoT final project — a smart photo booth that merges embedded
+        systems with computer vision. We wanted something that feels magical to use: no buttons,
+        no screens to touch — just you, a hand in the air, and a perfect memory delivered
+        straight to your phone.
+      </p>
+      <p style="margin-top:1rem;">
+        The vintage aesthetic was a deliberate choice. The ESP32-CAM produces warm, slightly
+        grainy imagery that feels closer to analogue photography than modern digital. We leaned
+        into that character rather than fighting it.
+      </p>
+    </div>
+
+    <div class="about-section">
+      <div class="ornament mb-3"><i class="bi bi-people"></i></div>
+      <h2>The Team</h2>
+      <div class="team-grid">
+        <div class="team-card">
+          <div class="team-avatar"><i class="bi bi-person"></i></div>
+          <div class="role">Hardware Lead</div>
+          <h4>Limeng Tyty</h4>
+          <p>ESP32 wiring, ring light &amp; buzzer control</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar"><i class="bi bi-person"></i></div>
+          <div class="role">Vision Engineer</div>
+          <h4>Channeath Ros</h4>
+          <p>MediaPipe hand detection &amp; gesture logic</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar"><i class="bi bi-person"></i></div>
+          <div class="role">Backend Dev</div>
+          <h4>Lim Darichhy</h4>
+          <p>Python server, MQTT broker &amp; Telegram bot</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar"><i class="bi bi-person"></i></div>
+          <div class="role">Frontend Dev</div>
+          <h4>Sorn Somavatey</h4>
+          <p>UI/UX design &amp; web interface</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="ornament mb-3"><i class="bi bi-tools"></i></div>
+      <h2>Tech Stack</h2>
+      <div class="tech-stack">
+        <div class="tech-tag"><i class="bi bi-cpu"></i> ESP32 DevKit V1</div>
+        <div class="tech-tag"><i class="bi bi-camera"></i> ESP32-CAM</div>
+        <div class="tech-tag"><i class="bi bi-eyeglasses"></i> MediaPipe</div>
+        <div class="tech-tag"><i class="bi bi-image"></i> OpenCV</div>
+        <div class="tech-tag"><i class="bi bi-code-slash"></i> Python / Flask</div>
+        <div class="tech-tag"><i class="bi bi-broadcast"></i> MQTT</div>
+        <div class="tech-tag"><i class="bi bi-lightbulb"></i> WS2812B RGB Ring</div>
+        <div class="tech-tag"><i class="bi bi-telegram"></i> Telegram Bot API</div>
+        <div class="tech-tag"><i class="bi bi-wifi"></i> Wi-Fi / HTTP REST</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-ghost" onclick="goTo('home')">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <div class="step-dots">
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot active"></div>
+    </div>
+    <button class="btn-vintage" onclick="goTo('frame')">
+      Start Shooting <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+
+  <footer class="site-footer">
+    SnapBooth · IoT Final Project · Built with <span>❤</span> using ESP32 + MediaPipe
+  </footer>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  /* ─── CONFIG ─── */
+  const API_STATUS      = "http://localhost:5000/api/status";
+  const API_PHOTO       = "http://localhost:5000/api/latest";
+  const API_FRAME       = "http://localhost:5000/api/frame-choice";
+
+  /* ─── STATE ─── */
+  const state = {
+    style: 'classic',
+    color: 'gold',
+    theme: 'vintage',
+    currentPage: 'home',
+  };
+
+  const pageIds    = { home:'page-home', frame:'page-frame', capture:'page-capture', how:'page-how', about:'page-about' };
+  const navLinkIds = { home:'nl-home', frame:'nl-frame', capture:'nl-capture', how:'nl-how', about:'nl-about' };
+
+  /* ─── NAVIGATION ─── */
+  function goTo(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active-link'));
+    document.getElementById(pageIds[name]).classList.add('active');
+    document.getElementById(navLinkIds[name]).classList.add('active-link');
+    state.currentPage = name;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('navLinks').classList.remove('show');
+    if (name === 'capture') {
+      updateCaptureSummary();
+      syncFrameToServer();
+    }
+  }
+
+  function toggleMobileMenu() {
+    document.getElementById('navLinks').classList.toggle('show');
+  }
+
+  /* ─── FRAME SELECTION ─── */
+  function selectStyle(card, style) {
+    document.querySelectorAll('.frame-style-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    state.style = style;
+    updateLivePreview();
+    postFrameChoice();
+  }
+
+  function selectColor(swatch, color) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    swatch.classList.add('selected');
+    state.color = color;
+    updateLivePreview();
+    postFrameChoice();
+  }
+
+  function selectTheme(pill, theme) {
+    document.querySelectorAll('.theme-pill').forEach(p => p.classList.remove('selected'));
+    pill.classList.add('selected');
+    state.theme = theme;
+    updateLivePreview();
+    postFrameChoice();
+  }
+
+  const colorMap    = { gold:'#c8a96e', rose:'#c97d6a', sage:'#7a8c6e', slate:'#6a7fa0', lavender:'#9c7aa0', terracotta:'#a07a5a', charcoal:'#2a2118', cream:'#f5f0e8' };
+  const styleLabels = { classic:'Classic Gold', film:'35mm Film', polaroid:'Polaroid', botanical:'Botanical' };
+  const colorLabels = { gold:'Vintage Gold', rose:'Dusty Rose', sage:'Sage Green', slate:'Slate Blue', lavender:'Muted Lavender', terracotta:'Terracotta', charcoal:'Charcoal', cream:'Ivory Cream' };
+  const themeLabels = { vintage:'Vintage', romantic:'Romantic', minimal:'Minimal', festive:'Festive', noir:'Noir', botanical:'Botanical' };
+
+  function updateLivePreview() {
+    const col   = colorMap[state.color] || '#c8a96e';
+    const frame = document.getElementById('livePreviewFrame');
+    frame.className = 'flp-frame';
+    frame.style.cssText = '';
+    switch (state.style) {
+      case 'classic':
+        frame.style.border     = `12px solid ${col}`;
+        frame.style.background = '#f0ead8';
+        frame.style.boxShadow  = `inset 0 0 0 2px ${col}88`;
+        break;
+      case 'film':
+        frame.style.border     = `16px solid #1a1208`;
+        frame.style.background = '#0d0a06';
+        frame.style.boxShadow  = `inset 0 0 0 2px ${col}44`;
+        break;
+      case 'polaroid':
+        frame.style.border       = `8px solid ${col}22`;
+        frame.style.borderBottom = `36px solid ${col}22`;
+        frame.style.background   = '#faf7f2';
+        frame.style.boxShadow    = `0 4px 16px rgba(0,0,0,.2), 2px 2px 0 #e0d8cc`;
+        break;
+      case 'botanical':
+        frame.style.border     = `10px solid ${col}`;
+        frame.style.background = '#f5f0e8';
+        frame.style.boxShadow  = `inset 0 0 0 3px ${col}66`;
+        break;
+    }
+    document.getElementById('livePreviewLabel').textContent =
+      `${styleLabels[state.style]} · ${colorLabels[state.color]} · ${themeLabels[state.theme]}`;
+    document.getElementById('selectionSummary').innerHTML =
+      `<span style="color:var(--charcoal);">${styleLabels[state.style]}</span> frame<br>
+       <span style="color:var(--charcoal);">${colorLabels[state.color]}</span> accent<br>
+       <span style="color:var(--charcoal);">${themeLabels[state.theme]}</span> mood`;
+  }
+
+  function updateCaptureSummary() {
+    const el = document.getElementById('frameSummaryCaptureText');
+    if (el) el.innerHTML =
+      `<strong style="color:var(--sepia);">${styleLabels[state.style]}</strong> frame<br>
+       ${colorLabels[state.color]} accent · ${themeLabels[state.theme]} mood`;
+    const badge = document.getElementById('selectedStyleBadge');
+    if (badge) badge.textContent = `${styleLabels[state.style]} · ${themeLabels[state.theme]}`;
+  }
+
+  /* ─── BOOTH STATE POLLING ─── */
+  let _lastBoothState = null;
+  let _prevBoothState = null;
+
+  function showPanel(name) {
+    document.getElementById('panelGuide').style.display     = name === 'guide'     ? '' : 'none';
+    document.getElementById('panelCountdown').style.display = name === 'countdown' ? '' : 'none';
+    document.getElementById('panelResult').style.display    = name === 'result'    ? '' : 'none';
+  }
+
+  function applyBoothState(data) {
+    const dot     = document.getElementById('statusDot');
+    const txt     = document.getElementById('statusText');
+    const overlay = document.getElementById('countdownOverlay');
+    const numEl   = document.getElementById('countdownNum');
+    const flash   = document.getElementById('flashOverlay');
+    const bar     = document.getElementById('triggerBar');
+    const s       = data.state;
+
+    // Progress bar — always update
+    if (bar) bar.style.width = ((data.progress || 0) * 100) + '%';
+
+    // Skip duplicate state (except COUNTDOWN which changes every second)
+    if (s === _lastBoothState && s !== 'COUNTDOWN') return;
+    _prevBoothState = _lastBoothState;
+    _lastBoothState = s;
+
+    // ── IDLE ──────────────────────────────────────────
+    if (s === 'IDLE') {
+      overlay.classList.remove('active');
+      dot.className = 'status-dot waiting';
+      txt.textContent = data.progress > 0
+        ? `Hold it! ${Math.round(data.progress * 100)}% — ${data.fingers}/5 fingers`
+        : data.fingers > 0
+          ? `Fingers detected: ${data.fingers}/5 — keep going!`
+          : 'Waiting for gesture…';
+      // Only switch back to guide if we weren't just showing a result
+      // (result panel stays visible until user clicks Take Another)
+      if (_prevBoothState !== 'RESULT' && _prevBoothState !== 'SENDING') {
+        showPanel('guide');
+      }
+    }
+
+    // ── COUNTDOWN ─────────────────────────────────────
+    if (s === 'COUNTDOWN') {
+      overlay.classList.add('active');
+      dot.className = 'status-dot detecting';
+      txt.textContent = 'High-Five detected — counting down!';
+      showPanel('countdown');
+      const n = data.seconds_left;
+      [numEl, document.getElementById('rightCountNum')].forEach(el => {
+        if (el && el.textContent !== String(n)) {
+          el.textContent = n;
+          el.style.animation = 'none';
+          void el.offsetWidth;
+          el.style.animation = 'countPop .5s ease';
+        }
+      });
+    }
+
+    // ── CAPTURE / SENDING ─────────────────────────────
+    if (s === 'CAPTURE' || s === 'SENDING') {
+      numEl.textContent = '😊';
+      setTimeout(() => {
+        overlay.classList.remove('active');
+        flash.classList.add('flash');
+        setTimeout(() => flash.classList.remove('flash'), 400);
+      }, 300);
+      dot.className = 'status-dot';
+      txt.textContent = 'Smile! Sending to Telegram…';
+    }
+
+    // ── RESULT ────────────────────────────────────────
+    if (s === 'RESULT') {
+      overlay.classList.remove('active');
+      showPanel('result');
+
+      dot.className = data.send_ok ? 'status-dot' : 'status-dot detecting';
+      txt.textContent = data.send_ok
+        ? 'Sent to Telegram! ✓'
+        : 'Captured — Telegram send failed ✗';
+
+      const badge = document.getElementById('resultBadge');
+      if (badge) {
+        badge.style.cssText = data.send_ok ? '' : 'border-color:var(--rose);color:var(--rose);';
+        badge.innerHTML = data.send_ok
+          ? '<i class="bi bi-telegram"></i> Sent to Telegram ✓'
+          : '<i class="bi bi-exclamation-circle"></i> Telegram send failed';
+      }
+
+      // ── Load captured photo on right panel ──
+      loadResultPhoto();
+    }
+  }
+
+  function loadResultPhoto() {
+    const rPhoto = document.getElementById('resultPhoto');
+    const rWrap  = document.getElementById('resultPhotoWrap');
+    const rEmpty = document.getElementById('resultPhotoEmpty');
+    if (!rPhoto) return;
+
+    rPhoto.style.display = 'none';
+    if (rWrap)  rWrap.style.opacity = '0';
+    if (rEmpty) rEmpty.style.display = 'flex';
+
+    const url = `${API_PHOTO}?t=${Date.now()}`;
+
+    rPhoto.onload = () => {
+      rPhoto.style.display = 'block';
+      if (rEmpty) rEmpty.style.display = 'none';
+      if (rWrap)  { rWrap.style.opacity = '1'; rWrap.style.transition = 'opacity .5s'; }
+    };
+    rPhoto.onerror = () => {
+      // File may still be writing — retry every 600ms up to 5 times
+      let tries = 0;
+      const retry = setInterval(() => {
+        tries++;
+        rPhoto.src = `${API_PHOTO}?t=${Date.now()}`;
+        if (tries >= 5) clearInterval(retry);
+      }, 600);
+    };
+    rPhoto.src = url;
+  }
+
+  async function postFrameChoice() {
+    const payload = { style: state.style, color: state.color, theme: state.theme };
+    localStorage.setItem('snapbooth_frame', JSON.stringify(payload));
+    try {
+      const r = await fetch(API_FRAME, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json();
+      console.log('[Frame] Posted OK:', j);
+    } catch(e) { console.warn('[Frame] POST failed:', e); }
+  }
+
+  // Always re-sync frame to server when entering capture page
+  async function syncFrameToServer() {
+    const saved = localStorage.getItem('snapbooth_frame');
+    const payload = saved ? JSON.parse(saved)
+                          : { style: state.style, color: state.color, theme: state.theme };
+    state.style = payload.style;
+    state.color = payload.color;
+    state.theme = payload.theme;
+    try {
+      const r = await fetch(API_FRAME, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json();
+      console.log('[Frame] Synced on capture entry:', j);
+    } catch(e) { console.warn('[Frame] Sync failed:', e); }
+  }
+
+  async function pollStatus() {
+    try {
+      const res = await fetch(API_STATUS, { cache: 'no-store' });
+      const data = await res.json();
+      applyBoothState(data);
+    } catch(e) {}
+  }
+
+  /* ─── DEMO COUNTDOWN ─── */
+  let countdownTimer = null;
+  let isCapturing = false;
+
+  function demoCountdown() {
+    if (isCapturing) return;
+    isCapturing = true;
+    const overlay = document.getElementById('countdownOverlay');
+    const numEl = document.getElementById('countdownNum');
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    const rn = document.getElementById('rightCountNum');
+    dot.className = 'status-dot detecting';
+    txt.textContent = 'High-Five Detected! Counting down…';
+    overlay.classList.add('active');
+    showPanel('countdown');
+    let count = 3;
+    numEl.textContent = count;
+    if (rn) rn.textContent = count;
+    countdownTimer = setInterval(() => {
+      count--;
+      if (count > 0) {
+        numEl.textContent = count; numEl.style.animation = 'none'; void numEl.offsetWidth; numEl.style.animation = 'countPop .5s ease';
+        if (rn) { rn.textContent = count; rn.style.animation = 'none'; void rn.offsetWidth; rn.style.animation = 'countPop .5s ease'; }
+      } else {
+        clearInterval(countdownTimer);
+        triggerCaptureDemo();
+      }
+    }, 1000);
+  }
+
+  function triggerCaptureDemo() {
+    const overlay = document.getElementById('countdownOverlay');
+    const numEl = document.getElementById('countdownNum');
+    const flash = document.getElementById('flashOverlay');
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    numEl.textContent = '😊';
+    setTimeout(() => {
+      overlay.classList.remove('active');
+      flash.classList.add('flash');
+      setTimeout(() => flash.classList.remove('flash'), 350);
+      dot.className = 'status-dot';
+      txt.textContent = 'Photo captured & sent to Telegram!';
+      showPanel('result');
+      isCapturing = false;
+      setTimeout(() => { dot.className = 'status-dot waiting'; txt.textContent = 'Waiting for gesture…'; showPanel('guide'); }, 5000);
+    }, 800);
+  }
+
+  function resetCapture() {
+    const dot    = document.getElementById('statusDot');
+    const txt    = document.getElementById('statusText');
+    const rPhoto = document.getElementById('resultPhoto');
+    const rWrap  = document.getElementById('resultPhotoWrap');
+    const rEmpty = document.getElementById('resultPhotoEmpty');
+    const badge  = document.getElementById('resultBadge');
+
+    dot.className = 'status-dot waiting';
+    txt.textContent = 'Waiting for gesture…';
+
+    // Reset photo
+    if (rPhoto) { rPhoto.src = ''; rPhoto.style.display = 'none'; }
+    if (rWrap)  { rWrap.style.opacity = '0'; }
+    if (rEmpty) { rEmpty.style.display = 'flex'; }
+
+    // Reset badge
+    if (badge) {
+      badge.style.borderColor = '';
+      badge.style.color = '';
+      badge.innerHTML = '<i class="bi bi-telegram"></i> Sent to Telegram ✓';
+    }
+
+    _lastBoothState = null;
+    showPanel('guide');
+  }
+
+  /* ─── FAQ ─── */
+  function toggleFaq(item) {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+
+  /* ─── INIT ─── */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Restore saved frame from localStorage into state immediately
+    const saved = localStorage.getItem('snapbooth_frame');
+    if (saved) {
+      try {
+        const p = JSON.parse(saved);
+        state.style = p.style || state.style;
+        state.color = p.color || state.color;
+        state.theme = p.theme || state.theme;
+      } catch(e) {}
+    }
+
+    updateLivePreview();
+    showPanel('guide');
+
+    // Push frame choice to server immediately on load
+    // so BOOTH never stays at the default classic/gold
+    syncFrameToServer();
+    function startStream() {
+      const feed = document.getElementById('camFeed');
+      const placeholder = document.getElementById('camPlaceholder');
+      if (!feed) return;
+      feed.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      feed.src = window.location.origin + '/stream?t=' + Date.now();
+      feed.onerror = () => {
+        console.warn('[Stream] Error — retrying in 3s');
+        feed.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        setTimeout(startStream, 3000);
+      };
+    }
+    startStream();
+    pollStatus();
+    setInterval(pollStatus, 1000);
+
+    async function pollLiveFrame() {
+      if (state.currentPage !== 'capture') return;
+      if (_lastBoothState !== 'IDLE' && _lastBoothState !== 'COUNTDOWN' && _lastBoothState !== null) return;
+      const rc = document.getElementById('rightCamImg');
+      const rp = document.getElementById('rightCamPlaceholder');
+      if (!rc) return;
+      const img = new Image();
+      img.onload = () => { rc.src = img.src; rc.style.display='block'; if(rp) rp.style.display='none'; };
+      img.src = 'http://localhost:5000/api/live-frame?t=' + Date.now();
+    }
+    setInterval(pollLiveFrame, 125);
+  });
+</script>
+</body>
+</html>
