@@ -2,7 +2,7 @@
 # Run via: python server.py
 
 import cv2
-import os, time, math, threading
+import os, time, math
 from datetime import datetime
 
 import config
@@ -109,13 +109,14 @@ def run():
     print("   SnapBooth running  →  http://localhost:5000")
     print("=" * 50)
 
-    booth_state     = "IDLE"
-    countdown_start = None
-    captured_frame  = None
-    last_frame      = None
-    result_time     = None
-    locked_style    = "classic"
-    locked_color    = "gold"
+    booth_state      = "IDLE"
+    countdown_start  = None
+    captured_frame   = None
+    last_frame       = None
+    result_time      = None
+    locked_style     = "classic"
+    locked_color     = "gold"
+    last_beep_second = -1          # tracks which countdown second we last beeped
 
     _sync(state="IDLE", seconds_left=0, fingers=0, progress=0.0,
           send_ok=None, latest_photo=None)
@@ -135,17 +136,15 @@ def run():
                       progress=detector.trigger_progress)
 
                 if triggered:
-                    # Lock frame choice at trigger time (thread-safe)
                     locked_style, locked_color = _get_frame_choice()
                     print(f"[Booth] ✋ HIGH FIVE!  style={locked_style}  color={locked_color}")
-                    # Record start time BEFORE light.on() — it blocks ~3s
-                    # waiting for the ESP32 beep-countdown HTTP response.
-                    # Running it in a thread keeps the visual countdown in sync.
-                    booth_state     = "COUNTDOWN"
-                    countdown_start = now
+                    # Turn on light immediately when gesture is confirmed
+                    light.on()
+                    booth_state      = "COUNTDOWN"
+                    countdown_start  = now
+                    last_beep_second = -1
                     _sync(state="COUNTDOWN",
                           seconds_left=config.COUNTDOWN_SECONDS)
-                    threading.Thread(target=light.on, daemon=True).start()
 
             # ── COUNTDOWN ────────────────────────────────────
             elif booth_state == "COUNTDOWN":
@@ -158,6 +157,11 @@ def run():
                 remaining    = config.COUNTDOWN_SECONDS - elapsed
                 seconds_left = max(1, math.ceil(remaining))
                 _sync(state="COUNTDOWN", seconds_left=seconds_left)
+
+                # Beep once each time the displayed number changes (3→2→1)
+                if seconds_left != last_beep_second:
+                    last_beep_second = seconds_left
+                    light.beep(times=1, on_ms=80)
 
                 if remaining <= 0:
                     captured_frame = last_frame.copy()
