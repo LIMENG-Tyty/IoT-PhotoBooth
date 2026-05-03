@@ -1,14 +1,15 @@
 # ringlight_server.py — MicroPython REST server for ESP32 ring light
 # Hardware: GPIO 23, 24x WS2812B LEDs, static white color
-#           GPIO 18, Active buzzer (LOW-level triggered, MB12A05)
+#           GPIO 18, Active buzzer (HIGH-level triggered, MB12A05)
 #
 # Upload to ESP32 as main.py via Thonny
 #
 # REST API:
-#   GET /on          → solid white + beep once
-#   GET /off         → all LEDs off + beep twice
+#   GET /on          → solid white + 1 short beep
+#   GET /off         → all LEDs off (silent)
 #   GET /flash       → bright burst 300ms then off
 #   GET /blink?n=3   → blink N times
+#   GET /beep?n=1    → beep N times (used by Python for countdown ticks)
 #   GET /status      → JSON status
 
 import network
@@ -39,14 +40,13 @@ current_state = "off"
 
 
 # ── Buzzer helpers ────────────────────────────────────────
-# HIGH-level triggered: 1 = ON, 0 = OFF
 
 def buzzer_beep(times=1, on_ms=100, off_ms=100):
     """Beep N times. HIGH = ON, LOW = OFF."""
     for i in range(times):
-        buzzer.value(1)          # HIGH = buzz ON
+        buzzer.value(1)
         time.sleep_ms(on_ms)
-        buzzer.value(0)          # LOW = buzz OFF
+        buzzer.value(0)
         if i < times - 1:
             time.sleep_ms(off_ms)
 
@@ -54,6 +54,7 @@ def buzzer_beep(times=1, on_ms=100, off_ms=100):
 # ── LED helpers ───────────────────────────────────────────
 
 def leds_on():
+    """Turn all LEDs on immediately + 1 short beep. No blocking countdown."""
     global current_state
     for i in range(LED_COUNT):
         np[i] = WHITE
@@ -70,7 +71,6 @@ def leds_off():
     np.write()
     current_state = "off"
     print("[Ring] OFF")
-    # no beep on off
 
 
 def leds_flash():
@@ -81,7 +81,6 @@ def leds_flash():
     print("[Ring] FLASH")
     time.sleep_ms(300)
     leds_off()
-    # no beep on flash
 
 
 def leds_blink(times=3):
@@ -168,12 +167,17 @@ def handle_request(conn, addr):
             return
 
         if route == "on":
+            # Respond FIRST, then act — prevents HTTP timeout on slow operations
+            send_json(conn, {"ok": True, "state": "on"})
+            conn.close()
             leds_on()
-            send_json(conn, {"ok": True, "state": current_state})
+            return
 
         elif route == "off":
+            send_json(conn, {"ok": True, "state": "off"})
+            conn.close()
             leds_off()
-            send_json(conn, {"ok": True, "state": current_state})
+            return
 
         elif route == "flash":
             send_json(conn, {"ok": True, "msg": "flash"})
@@ -187,6 +191,17 @@ def handle_request(conn, addr):
             send_json(conn, {"ok": True, "msg": f"blink x{times}"})
             conn.close()
             leds_blink(times)
+            return
+
+        elif route == "beep":
+            # Called by Python once per countdown tick so the buzzer chirps
+            # in sync with the on-screen countdown (3… 2… 1…)
+            times  = int(params.get("n", 1))
+            on_ms  = int(params.get("ms", 80))
+            times  = max(1, min(times, 5))
+            send_json(conn, {"ok": True, "msg": f"beep x{times}"})
+            conn.close()
+            buzzer_beep(times=times, on_ms=on_ms)
             return
 
         elif route == "status":
@@ -206,12 +221,13 @@ def handle_request(conn, addr):
             body = (
                 "<h2>Photo Booth Ring Light</h2>"
                 f"<p>LEDs: {LED_COUNT} on GPIO {LED_PIN} | "
-                f"Buzzer: GPIO {BUZZER_PIN} (low-level)</p>"
+                f"Buzzer: GPIO {BUZZER_PIN} (high-level)</p>"
                 "<p>"
                 "<a href='/on'>/on</a> | "
                 "<a href='/off'>/off</a> | "
                 "<a href='/flash'>/flash</a> | "
                 "<a href='/blink?n=3'>/blink?n=3</a> | "
+                "<a href='/beep?n=1'>/beep?n=1</a> | "
                 "<a href='/status'>/status</a>"
                 "</p>"
             )
@@ -230,7 +246,10 @@ def handle_request(conn, addr):
     except Exception as e:
         print(f"[HTTP] Error: {e}")
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except:
+            pass
 
 
 # ── Server loop ───────────────────────────────────────────
@@ -258,7 +277,7 @@ def main():
     leds_off()
     ip = connect_wifi()
 
-    # 3 white blinks + 3 beeps = ready
+    # 3 blinks + beeps = ready signal
     leds_blink(3)
 
     print("[Ring] Ready! Waiting for commands...")
