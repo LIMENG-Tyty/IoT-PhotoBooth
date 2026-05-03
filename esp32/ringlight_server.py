@@ -1,11 +1,12 @@
 # ringlight_server.py — MicroPython REST server for ESP32 ring light
 # Hardware: GPIO 23, 24x WS2812B LEDs, static white color
+#           GPIO 18, Active buzzer (LOW-level triggered, MB12A05)
 #
 # Upload to ESP32 as main.py via Thonny
 #
 # REST API:
-#   GET /on          → solid white
-#   GET /off         → all LEDs off
+#   GET /on          → solid white + beep once
+#   GET /off         → all LEDs off + beep twice
 #   GET /flash       → bright burst 300ms then off
 #   GET /blink?n=3   → blink N times
 #   GET /status      → JSON status
@@ -26,12 +27,28 @@ LED_PIN    = 23
 LED_COUNT  = 24
 BRIGHTNESS = 0.78   # 0.0 – 1.0
 
+BUZZER_PIN = 18     # HIGH-level triggered: 1=ON, 0=OFF
+
 WHITE = (int(255 * BRIGHTNESS), int(255 * BRIGHTNESS), int(255 * BRIGHTNESS))
 OFF   = (0, 0, 0)
 # ─────────────────────────────────────────────────────────
 
-np = neopixel.NeoPixel(Pin(LED_PIN), LED_COUNT)
+np     = neopixel.NeoPixel(Pin(LED_PIN), LED_COUNT)
+buzzer = Pin(BUZZER_PIN, Pin.OUT, value=0)  # LOW = silent on init
 current_state = "off"
+
+
+# ── Buzzer helpers ────────────────────────────────────────
+# HIGH-level triggered: 1 = ON, 0 = OFF
+
+def buzzer_beep(times=1, on_ms=100, off_ms=100):
+    """Beep N times. HIGH = ON, LOW = OFF."""
+    for i in range(times):
+        buzzer.value(1)          # HIGH = buzz ON
+        time.sleep_ms(on_ms)
+        buzzer.value(0)          # LOW = buzz OFF
+        if i < times - 1:
+            time.sleep_ms(off_ms)
 
 
 # ── LED helpers ───────────────────────────────────────────
@@ -43,6 +60,7 @@ def leds_on():
     np.write()
     current_state = "on"
     print("[Ring] ON")
+    buzzer_beep(times=1, on_ms=80)   # 1 short beep = lights on
 
 
 def leds_off():
@@ -52,6 +70,7 @@ def leds_off():
     np.write()
     current_state = "off"
     print("[Ring] OFF")
+    # no beep on off
 
 
 def leds_flash():
@@ -62,6 +81,7 @@ def leds_flash():
     print("[Ring] FLASH")
     time.sleep_ms(300)
     leds_off()
+    # no beep on flash
 
 
 def leds_blink(times=3):
@@ -172,19 +192,21 @@ def handle_request(conn, addr):
         elif route == "status":
             wlan = network.WLAN(network.STA_IF)
             send_json(conn, {
-                "ok":       True,
-                "state":    current_state,
-                "ip":       wlan.ifconfig()[0],
-                "hostname": f"{HOSTNAME}.local",
-                "rssi":     wlan.status("rssi"),
-                "leds":     LED_COUNT,
-                "pin":      LED_PIN,
+                "ok":         True,
+                "state":      current_state,
+                "ip":         wlan.ifconfig()[0],
+                "hostname":   f"{HOSTNAME}.local",
+                "rssi":       wlan.status("rssi"),
+                "leds":       LED_COUNT,
+                "led_pin":    LED_PIN,
+                "buzzer_pin": BUZZER_PIN,
             })
 
         elif route == "" or route == "index.html":
             body = (
                 "<h2>Photo Booth Ring Light</h2>"
-                f"<p>LEDs: {LED_COUNT} on GPIO {LED_PIN}</p>"
+                f"<p>LEDs: {LED_COUNT} on GPIO {LED_PIN} | "
+                f"Buzzer: GPIO {BUZZER_PIN} (low-level)</p>"
                 "<p>"
                 "<a href='/on'>/on</a> | "
                 "<a href='/off'>/off</a> | "
@@ -236,7 +258,7 @@ def main():
     leds_off()
     ip = connect_wifi()
 
-    # 3 white blinks = ready
+    # 3 white blinks + 3 beeps = ready
     leds_blink(3)
 
     print("[Ring] Ready! Waiting for commands...")
