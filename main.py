@@ -2,7 +2,7 @@
 # Run via: python server.py
 
 import cv2
-import os, time, math
+import os, time, math, threading
 from datetime import datetime
 
 import config
@@ -138,11 +138,14 @@ def run():
                     # Lock frame choice at trigger time (thread-safe)
                     locked_style, locked_color = _get_frame_choice()
                     print(f"[Booth] ✋ HIGH FIVE!  style={locked_style}  color={locked_color}")
-                    light.on()
+                    # Record start time BEFORE light.on() — it blocks ~3s
+                    # waiting for the ESP32 beep-countdown HTTP response.
+                    # Running it in a thread keeps the visual countdown in sync.
                     booth_state     = "COUNTDOWN"
                     countdown_start = now
                     _sync(state="COUNTDOWN",
                           seconds_left=config.COUNTDOWN_SECONDS)
+                    threading.Thread(target=light.on, daemon=True).start()
 
             # ── COUNTDOWN ────────────────────────────────────
             elif booth_state == "COUNTDOWN":
